@@ -8679,6 +8679,7 @@ static void rt_pa_set_source_info_and_quit(pa_context * /*c*/, const pa_source_i
 static void rt_pa_context_state_callback(pa_context *context, void *userdata) {
   (void)userdata;
 
+  pa_operation* op = nullptr;
   auto state = pa_context_get_state(context);
   switch (state) {
     case PA_CONTEXT_CONNECTING:
@@ -8688,9 +8689,12 @@ static void rt_pa_context_state_callback(pa_context *context, void *userdata) {
 
     case PA_CONTEXT_READY:
       rt_pa_info.dev.clear();
-      pa_context_get_server_info(context, rt_pa_set_server_info, NULL);
-      pa_context_get_sink_info_list(context, rt_pa_set_sink_info, NULL);
-      pa_context_get_source_info_list(context, rt_pa_set_source_info_and_quit, NULL);
+      op = pa_context_get_server_info(context, rt_pa_set_server_info, NULL);
+      if (op) pa_operation_unref(op);
+      op = pa_context_get_sink_info_list(context, rt_pa_set_sink_info, NULL);
+      if (op) pa_operation_unref(op);
+      op = pa_context_get_source_info_list(context, rt_pa_set_source_info_and_quit, NULL);
+      if (op) pa_operation_unref(op);
       break;
 
     case PA_CONTEXT_TERMINATED:
@@ -8769,7 +8773,8 @@ quit:
 
 unsigned int RtApiPulse::getDeviceCount( void )
 {
-  collectDeviceInfo();
+  if (rt_pa_info.dev.size() == 0)
+    collectDeviceInfo();
   return rt_pa_info.dev.size();
 }
 
